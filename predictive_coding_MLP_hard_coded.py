@@ -71,7 +71,8 @@ class PredictiveCoding(nn.Module):
             # variance = torch.var(self.mu[l], dim=0, keepdim=True)  # Compute variance
             self.error[l] = (self.mu[l] - layer_output) #/ torch.sqrt(variance + 1e-8)  # Add small value to avoid division by zero
         
-        self.E = sum(torch.mean(error ** 2).item() for error in self.error)
+        batch_size = self.mu[0].shape[0]
+        self.E = torch.sum(torch.stack([torch.sum(0.5 * error ** 2)/batch_size for error in self.error]))
         return self.E
 
     def label_pred(self, x):
@@ -152,10 +153,12 @@ def train_model(model, train_loader, T=3, device="cpu", weight_optimizer_type = 
             model.layers[l].bias.grad = - grad_b
       weight_optimizer.step()
 
-      
+      energy = model.compute_error()      
       # print("w:", model.E)
-      total_energy += model.compute_error()
+      
+      total_energy += energy
 
+    total_energy /= len(train_loader)
     del model.mu, model.error, mu_optimizer  
     tqdm.write(f"Total Energy: {total_energy:.4f}")
 
@@ -178,15 +181,16 @@ def evaluate_model(model, test_loader, device="cpu"):
     print(f'Test Accuracy: {accuracy:.2f}%')
 
 
+# accuracy = 94% weight_optimizer: adamw, num_T: 60, learning_rate: 0.001
 # Parameters
 batch_size = 128
 
-num_epochs = 100
+num_epochs = 10
 num_T = 60 # iteratioins of relaxation loop
 
 mu_optimizer_type = "sgd" # Options: "sgd", "adam", "adamw"
-weight_optimizer_type = "sgd" # Options: "sgd", "adam", "adamw"
-learning_rate = 0.003 # learning rate for weight optimizer, learning rate for mu optimizer is set to 0.1
+weight_optimizer_type = "adamw" # Options: "sgd", "adam", "adamw"
+learning_rate = 0.001 # learning rate for weight optimizer, learning rate for mu optimizer is set to 0.1
 
 activation_type = "relu" # Options: "sigmoid", "tanh", "relu", "identity"
 bias = False
