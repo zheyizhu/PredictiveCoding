@@ -68,7 +68,7 @@ class PredictiveCoding(nn.Module):
             self.error[l] = (self.mu[l] - layer_output) #/ torch.sqrt(variance + 1e-8)  # Add small value to avoid division by zero
 
         batch_size = self.mu[0].shape[0]
-        self.E = torch.sum(torch.stack([torch.sum(0.5 * error ** 2)/batch_size for error in self.error]))
+        self.E = 128*torch.sum(torch.stack([torch.sum(0.5 * error ** 2)/batch_size for error in self.error]))
         return self.E
 
     def label_pred(self, x):
